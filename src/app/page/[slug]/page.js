@@ -5,6 +5,7 @@ import { getListPage, getSinglePage } from "@lib/contentParser";
 import { sortByDate } from "@lib/utils/sortFunctions";
 import { markdownify } from "@lib/utils/textConverter";
 import Post from "@partials/Post";
+import { notFound } from "next/navigation";
 
 const { blog_folder, summary_length } = config.settings;
 
@@ -26,10 +27,17 @@ export const generateStaticParams = async () => {
 
 const BlogPagination = async ({ params }) => {
   const { slug } = await params;
-  const currentPage = parseInt((slug) || "1");
+  const currentPage = parseInt(slug || "1");
   const { pagination } = config.settings;
-  const posts = getSinglePage(`src/content/${blog_folder}`);
-  const postIndex = await getListPage(`src/content/${blog_folder}/_index.md`);
+  let posts, postIndex;
+  try {
+    // Throws at request time on Cloudflare Workers (no fs); the page is then
+    // unknown, so render the 404 page instead of a 500.
+    posts = getSinglePage(`src/content/${blog_folder}`);
+    postIndex = await getListPage(`src/content/${blog_folder}/_index.md`);
+  } catch {
+    notFound();
+  }
 
   const indexOfLastPost = currentPage * pagination;
   const indexOfFirstPost = indexOfLastPost - pagination;

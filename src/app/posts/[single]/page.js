@@ -2,6 +2,7 @@ import config from "@config/config.json";
 import PostSingle from "@layouts/PostSingle";
 import { getSinglePage } from "@lib/contentParser";
 import { getTaxonomy } from "@lib/taxonomyParser";
+import { notFound } from "next/navigation";
 
 const { blog_folder } = config.settings;
 
@@ -14,8 +15,19 @@ export const generateStaticParams = async () => {
 
 const Article = async ({ params }) => {
   const { single } = await params;
-  const posts = getSinglePage(`src/content/${blog_folder}`);
+  let posts, categories;
+  try {
+    // Throws at request time on Cloudflare Workers (no fs); the post is then
+    // unknown, so render the 404 page instead of a 500.
+    posts = getSinglePage(`src/content/${blog_folder}`);
+    categories = getTaxonomy(`src/content/${blog_folder}`, "categories");
+  } catch {
+    notFound();
+  }
   const post = posts.find((p) => p.slug == single);
+  if (!post) {
+    notFound();
+  }
 
   const relatedPosts = posts.filter((p) =>
     post.frontmatter.categories.some((cate) =>
@@ -23,7 +35,6 @@ const Article = async ({ params }) => {
     )
   );
 
-  const categories = getTaxonomy(`src/content/${blog_folder}`, "categories");
   const categoriesWithPostsCount = categories.map((category) => {
     const filteredPosts = posts.filter((post) =>
       post.frontmatter.categories.includes(category)

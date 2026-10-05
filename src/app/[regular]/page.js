@@ -4,6 +4,7 @@ import Contact from "@layouts/Contact";
 import Default from "@layouts/Default";
 import SeoMeta from "@layouts/partials/SeoMeta";
 import { getRegularPage, getSinglePage } from "@lib/contentParser";
+import { notFound } from "next/navigation";
 
 export const generateStaticParams = async () => {
   const slugs = getSinglePage("src/content");
@@ -14,7 +15,14 @@ export const generateStaticParams = async () => {
 
 const RegularPages = async ({ params }) => {
   const { regular } = await params;
-  const data = await getRegularPage(regular);
+  let data;
+  try {
+    // Throws at request time on Cloudflare Workers (no fs); the slug is then
+    // unknown, so render the 404 page instead of a 500.
+    data = await getRegularPage(regular);
+  } catch {
+    notFound();
+  }
   const { title, meta_title, description, image, noindex, canonical, layout } =
     data.frontmatter;
   const { content } = data;
